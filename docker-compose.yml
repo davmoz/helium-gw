@@ -1,0 +1,170 @@
+version: '2'
+
+services:
+
+  gateway-rs:
+    build: ./gateway-rs
+    devices:
+      - /dev/i2c-1
+    expose:
+      - "1680"
+    depends_on: 
+      - packet-forwarder
+    network_mode: host
+    
+  packet-forwarder:
+    # Use pre-defined image
+    image: rakwireless/udp-packet-forwarder:latest
+
+    # Or comment out image and build it yourself
+    #build:
+    #  context: .
+    #  args:
+    #    ARCH: aarch64
+
+    restart: unless-stopped
+    privileged: true         # set this to true or define the required devices to share with the container under the `devices` tag below
+    network_mode: host       # required to read host interface MAC instead of virtual one, you don't need this if you set the GATEWAY_EUI manually
+
+    #devices:
+    #  - /dev/ttyACM0         # share the device where your concentrator is connected to or set privileged to true above
+    #  - /dev/spidev0.0       # share the device where your concentrator is connected to or set privileged to true above
+    #  - /dev/gpiochip0       # allow the container to access the GPIO (via gpiod) if using an SPI concentrator or set privileged to true above
+
+    #volumes:
+    #  - ./config:/app/config
+    
+    environment:
+      
+      # To select your concentrator you have 3 options:
+      # Option 1: set the MODEL to the device model number (i.e. RAK7371)
+      # Option 2: set the MODEL to the concentrator model number (i.e. RAK5146, WM1302, R11E-LR8...)
+      # Option 2: set the MODEL to the concentrator chip (i.e. SX1303)
+      MODEL: "RAK7248"
+      #MODEL: "SX1303"
+
+      # The interface the concentrator uses, either "SPI", "USB", "NET" or "AUTO". 
+      # Use "AUTO" coupled with device auto-discover feature below. Defaults to "SPI".
+      #INTERFACE: "AUTO"
+      #INTERFACE: "NET"
+
+      # If you have the concentrator connected to a different port than the default one 
+      # ("/dev/spidev0.0" for SPI, "/dev/ttyACM0" for USB or "<hostip>:3333" for NET) you can define here.
+      # Set it to "AUTO" for auto-discover (works only with local Corecell, Picocell and 2g4 concentrators).
+      #DEVICE: "/dev/spidev0.0"
+      #DEVICE: "/dev/ttyACM0"
+      #DEVICE: "192.168.1.86:3333"
+      #DEVICE: "AUTO"
+
+      # When using auto-discover feature the search will stop after the first concentrator it finds,
+      # you can change this behaviour by setting RADIO_NUM to any other value.
+      #RADIO_NUM: 1
+
+      # GPIO to reset SPI concentrators (these are the defaults)
+      #USE_LIBGPIOD: 0 # set to 1 by default for Raspberry Pi 5
+      #GPIO_CHIP: "gpiochip0" # set to "gpiochip4" by default for Raspberry Pi 5
+      RESET_GPIO: 25
+      #POWER_EN_GPIO: 0
+      #POWER_EN_LOGIC:1
+
+      # Problems with an SPI concentrator are sometimes related to the bus speed,
+      # you can set a different one this way
+      #SPI_SPEED: 8000000
+
+      # Each gateway is identified by its Gateway EUI (8 bytes in hex format)
+      # The procedure to defined that EUI is as follows:
+      # 1) It will use the EUI in the configuration files provided if any
+      # 2) It will use the concentrator Chip ID if GATEWAY_EUI_SOURCE set to "chip" (will work only for Corecell concentrators)
+      # 3) It will use the GATEWAY_EUI variable below if defined
+      # 4) It will use the MAC address of the network interface identified by GATEWAY_EUI_SOURCE
+      # 5) It will use the MAC address of the first existing network interface in this list: eth0, wlan0 and usb0
+      # 6) It will use the MAC address of the network interface with more traffic
+      # For options 4 to 6 you want to use network mode host to get the same EUI accross container reboots
+      #GATEWAY_EUI_SOURCE: "enx00e04c68160f"
+      #GATEWAY_EUI_SOURCE: "chip"
+      #GATEWAY_EUI: "00E04CFFFE68160F"
+
+      # The default LNS server is the European TTN server. 
+      # If you still want to use TTN but a different region you can set it this way:
+      #TTN_REGION: "au1"
+
+      # Or you can set a completely different LNS server.
+      SERVER_HOST: 127.0.0.1
+      SERVER_PORT: 1680
+
+      # The default frequency band is EU868, 
+      # if your module uses a different band you have to select it here:
+      #BAND: "cn_470_510"
+
+      # Define whether the device has a GPS or LTE connectivity (legacy)
+      #HAS_GPS: "0"
+      #HAS_LTE: "0"
+      
+      # ------------------------------------------------
+      # GPS
+      # ------------------------------------------------
+
+      # Same for the GPS
+      #GPS_DEV: "/dev/i2c-1"
+      #GPS_DEV: "/dev/ttyUSB1"
+
+      # If you want the gateway to report a specific lat/lon/alt you can set them this way:
+      #GPS_LATITUDE: 41.42
+      #GPS_LONGITUDE: 2.12
+      #GPS_ALTITUDE: 0
+
+      # ------------------------------------------------
+      # Whitelisting
+      # ------------------------------------------------
+
+      # If the WHITELIST_NETIDS list is not empty, only uplinks from the listed NetID will be allowed.
+      # The list can be comma or space separated. NetIDs are 3 bytes long and can be in decimal or hex (starting with 0x).
+      #WHITELIST_NETIDS: 19,0xC00071
+      
+      # If the WHITELIST_OUIS list is not empty, only join requests from devices by the listed OUI will be allowed.
+      # The OUI of the device is represented by the first 3 bytes of the DevEUI.
+      # The list can be comma or space separated. OUIs are 3 bytes long and can be in decimal or hex (starting with 0x).
+      #WHITELIST_OUIS: 0x75B3D5
+
+      # ------------------------------------------------
+      # Gateway Autoprovision
+      # ------------------------------------------------
+
+      # Gateway prefix to autogenerate IDs in TTI/TTN or ChirpStack (defaults to "eui")
+      #GATEWAY_PREFIX: "project"
+
+      # Gateway ID to use when registering the gateway in TTI/TTN or ChirpStack (defaults to "<GATEWAY_PREFIX>-<GATEWAY_EUI>")
+      #GATEWAY_ID: "gw-test-01"
+
+      # Gateway NAME to use when registering the gateway in TTI/TTN or ChirpStack (defaults to <GATEWAY_ID>)
+      #GATEWAY_NAME: "gw-test-01"
+
+      # ------------------------------------------------
+
+      # TTS username with privileges to provision a gateway
+      #TTS_USERNAME: "xoseperez"
+
+      # Personal key with privileges to provision a gateway
+      # Required permissions:
+      # * link as Gateway to a Gateway Server for traffic exchange, i.e. write uplink and read downlink
+      # * view and edit gateway API keys
+      # * edit basic gateway settings
+      # * create a gateway under the user account
+      #TTS_PERSONAL_KEY: "NNSXS.NUSV...."
+      
+      # The Things Stack frequency plan (https://www.thethingsindustries.com/docs/reference/frequency-plans/)
+      #TTS_FREQUENCY_PLAN_ID: "EU_863_870_TTN"
+
+      # ------------------------------------------------
+
+      # API URL, defaults to http://<SERVER_HOST>:8090
+      #CS_API_URL: http://localhost:8090
+
+      # Tenant ID to asign the gateway to
+      #CS_TENANT_ID: "6849ca56-aa22-4025-cc65-be6961131589"
+
+      # Token to use the ChirpStack API, must have permissions on the tenant above
+      #CS_TOKEN: "eyJ0eXAiOiJKV1QiLC...."
+
+      # ------------------------------------------------
+
