@@ -1,17 +1,37 @@
 from flask import Flask, request, jsonify
 import subprocess
+import os
+import signal
 
 app = Flask(__name__)
 
 # Path to settings.toml file
 settings_path = '/app/settings.toml'
 
+# Global variable to store the process ID
+gateway_process = None
+
 @app.route('/start_gateway', methods=['POST'])
 def start_gateway():
+    global gateway_process
     try:
         # Start the helium_gateway with the specified config file
-        subprocess.Popen(['./helium_gateway', '-c', settings_path, 'server'])
+        gateway_process = subprocess.Popen(['./helium_gateway', '-c', settings_path, 'server'])
         return jsonify({"message": "helium_gateway started successfully"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/stop_gateway', methods=['POST'])
+def stop_gateway():
+    global gateway_process
+    try:
+        if gateway_process:
+            # Terminate the helium_gateway process
+            os.kill(gateway_process.pid, signal.SIGTERM)
+            gateway_process = None
+            return jsonify({"message": "helium_gateway stopped successfully"}), 200
+        else:
+            return jsonify({"error": "helium_gateway is not running"}), 400
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
