@@ -22,5 +22,5 @@ RUN pip install -r /app/requirements.txt
 # Copy the rest of the application code into the container
 COPY . .
 
-# Specify the command to run the application
-CMD ["python3", "server.py"]
+# Specify the command to run the application with Waitress
+CMD ["waitress-serve", "--port=3000", "--call", "server:create_app"]
