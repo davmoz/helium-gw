@@ -6,8 +6,8 @@ import json
 
 app = Flask(__name__)
 
-# Path to settings.toml file
-settings_path = '/app/settings.toml'
+# Get gateway settings path from the environment variable
+settings_path = os.getenv('GATEWAY_SETTINGS')
 
 # Global variable to store the process ID
 gateway_process = None
