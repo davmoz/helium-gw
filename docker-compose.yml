@@ -22,6 +22,8 @@ services:
 
     environment:
       MODEL: "RAK7248"
+
+      USE_LIBGPIOD: 1
       RESET_GPIO: 25
       # Each gateway is identified by its Gateway EUI (8 bytes in hex format)
       # The procedure to defined that EUI is as follows:
@@ -39,3 +41,4 @@ services:
       # Helium settings
       SERVER_HOST: 127.0.0.1
       SERVER_PORT: 1680
+
